@@ -301,28 +301,28 @@ def _task_relations_json(
     indegree: dict[str, int] = {task.name: 0 for task in tasks}
     for _, successor in edges:
         indegree[successor] += 1
-    relations: list[dict[str, int | str]] = [
+    relations: list[dict[str, int | str | dict | None]] = [
         {
-            "name": "",
+            "name": None,
             "preTaskCode": 0,
             "preTaskVersion": 0,
             "postTaskCode": task_codes[task.name],
             "postTaskVersion": task_versions[task.name],
-            "conditionType": 0,
-            "conditionParams": "{}",
+            "conditionType": "NONE",
+            "conditionParams": {},
         }
         for task in tasks
         if indegree[task.name] == 0
     ]
     relations.extend(
         {
-            "name": "",
+            "name": None,
             "preTaskCode": task_codes[predecessor],
             "preTaskVersion": task_versions[predecessor],
             "postTaskCode": task_codes[successor],
             "postTaskVersion": task_versions[successor],
-            "conditionType": 0,
-            "conditionParams": "{}",
+            "conditionType": "NONE",
+            "conditionParams": {},
         }
         for predecessor, successor in edges
     )
@@ -421,10 +421,11 @@ def _task_definition_payload(
         "name": task.name,
         "description": task.description or "",
         "taskType": task.type.upper(),
-        "taskParams": _json_text(_task_params_payload(task, task_codes=task_codes)),
+        "taskParams": _task_params_payload(task, task_codes=task_codes),
         "flag": task_flag_value(task.flag),
         "taskPriority": task.priority.value,
         "workerGroup": task.worker_group or "default",
+        "isCache": "NO",
         "environmentCode": task_environment_code_value(task.environment_code),
         "taskGroupId": 0 if task_group_id is None else task_group_id,
         "taskGroupPriority": 0 if task_group_priority is None else task_group_priority,
@@ -434,7 +435,7 @@ def _task_definition_payload(
         "timeoutNotifyStrategy": timeout_notify_strategy,
         "timeout": task.timeout,
         "delayTime": task.delay,
-        "resourceIds": "",
+        "resourceIds": None,
         "cpuQuota": task_resource_limit_value(task.cpu_quota),
         "memoryMax": task_resource_limit_value(task.memory_max),
         "taskExecuteType": TASK_EXECUTE_TYPE_BATCH_VALUE,

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Literal, TypedDict, cast
 
 from dsctl.errors import ConfigError
 from dsctl.upstream.adapters.ds_3_4_1 import DS341Adapter
+from dsctl.upstream.adapters.ds_3_2_0 import DS320Adapter
 from dsctl.versioning import DEFAULT_DS_VERSION, normalize_version
 
 if TYPE_CHECKING:
@@ -46,8 +47,17 @@ class VersionSupport:
 
 
 _DS_3_4_1 = DS341Adapter()
+_DS_3_2_0 = DS320Adapter()
 
 _SUPPORT_BY_VERSION: dict[str, VersionSupport] = {
+    "3.2.0": VersionSupport(
+        server_version="3.2.0",
+        adapter=cast("UpstreamAdapter[object]", _DS_3_2_0),
+        contract_version="3.2.0",
+        family="process-3.2",
+        support_level="legacy_core",
+        tested=False,
+    ),
     "3.3.2": VersionSupport(
         server_version="3.3.2",
         adapter=cast("UpstreamAdapter[object]", _DS_3_4_1),

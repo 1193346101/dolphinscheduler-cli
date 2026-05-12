@@ -778,7 +778,17 @@ def _get_task_instance_log_result(
     task_instance_id: int,
     tail: int,
 ) -> CommandResult:
-    lines: deque[str] = deque(maxlen=tail)
+    """
+    Fetch full task-instance log, then return first 200 lines + last 300 lines.
+
+    User requirement:
+    - First 200 lines: task config info (driverMemory, executorMemory etc)
+    - Last 300 lines: error info
+
+    Args:
+        tail: Ignored (we always fetch full log and extract first 200 + last 300)
+    """
+    all_lines: list[str] = []  # Use list instead of deque to keep all lines
     skip_line_num = 0
     for _ in range(MAX_LOG_CHUNKS):
         try:
@@ -793,7 +803,7 @@ def _get_task_instance_log_result(
                 task_instance_id=task_instance_id,
             ) from exc
         chunk_lines = (chunk.message or "").splitlines()
-        lines.extend(chunk_lines)
+        all_lines.extend(chunk_lines)  # Keep all lines
         if chunk.lineNum < LOG_CHUNK_SIZE:
             break
         skip_line_num += chunk.lineNum
@@ -811,10 +821,24 @@ def _get_task_instance_log_result(
             ),
         )
 
+    # Extract first 200 lines (task config) and last 300 lines (error info)
+    config_lines = all_lines[:200]
+    error_lines = all_lines[-300:] if len(all_lines) > 200 else []
+
+    # Combine: config section + error section
+    combined_text = ""
+    if config_lines:
+        combined_text += "[TASK CONFIG - First 200 lines]\n"
+        combined_text += "\n".join(config_lines)
+        combined_text += "\n\n"
+    if error_lines:
+        combined_text += "[ERROR INFO - Last 300 lines]\n"
+        combined_text += "\n".join(error_lines)
+
     data = require_json_object(
         TaskLogData(
-            text="\n".join(lines),
-            lineCount=len(lines),
+            text=combined_text,
+            lineCount=len(all_lines),  # Total lines, not combined
         ),
         label="task-instance log data",
     )
@@ -823,7 +847,9 @@ def _get_task_instance_log_result(
         resolved=require_json_object(
             {
                 "taskInstance": TaskInstanceSelectionData(id=task_instance_id),
-                "tail": tail,
+                "totalLines": len(all_lines),
+                "configLines": len(config_lines),
+                "errorLines": len(error_lines),
             },
             label="task-instance log resolved",
         ),
